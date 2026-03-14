@@ -11,7 +11,16 @@
 
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
+    var raw = e.postData.contents;
+
+    // Handle form-encoded payload (from hidden form submit)
+    var data;
+    if (e.postData.type === 'application/x-www-form-urlencoded' && e.parameter.payload) {
+      data = JSON.parse(e.parameter.payload);
+    } else {
+      data = JSON.parse(raw);
+    }
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Check-In Sheet');
 

@@ -314,6 +314,12 @@
     <p class="text-slate-300 font-medium">Saving to sheet...</p>
   </div>
 
+  <!-- Hidden iframe + form for reliable cross-origin POST -->
+  <iframe id="submit-iframe" name="submit-iframe" style="display:none"></iframe>
+  <form id="submit-form" method="POST" target="submit-iframe" style="display:none">
+    <input type="hidden" name="payload" id="form-payload">
+  </form>
+
   <!-- Footer -->
   <footer class="text-center text-xs text-slate-600 py-4">
     Checkpoint &middot; Training Roadmap Check-in
@@ -562,28 +568,19 @@
         comments: formData.comments
       };
 
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+      // Use hidden form + iframe for reliable cross-origin POST
+      // (fetch with no-cors can lose POST body on Google's 302 redirects)
+      const form = document.getElementById('submit-form');
+      const payloadInput = document.getElementById('form-payload');
+      form.action = SCRIPT_URL;
+      payloadInput.value = JSON.stringify(payload);
+      form.submit();
 
-        try {
-          await fetch(SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(payload),
-            signal: controller.signal
-          });
-        } catch (fetchErr) {
-          if (fetchErr.name !== 'AbortError') throw fetchErr;
-        }
-        clearTimeout(timeout);
+      // Show success after a delay (we can't read the iframe response cross-origin)
+      setTimeout(() => {
         hideLoading();
         goToStep(10);
-      } catch (err) {
-        hideLoading();
-        showError('Failed to save. Check your connection and try again.');
-      }
+      }, 3000);
     }
 
     function showError(msg) {
