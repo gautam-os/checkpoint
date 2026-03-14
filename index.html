@@ -108,15 +108,61 @@
     }
     .date-chip:hover { background: #334155; }
     .date-chip.active { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
+
+    .week-strip { display: flex; justify-content: center; gap: 6px; padding: 0 16px; }
+    .week-day {
+      flex: 1;
+      max-width: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 0 6px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    .week-day:hover { background: #1e293b; }
+    .week-day.is-today { border-color: #334155; }
+    .week-day.is-selected { border-color: #0ea5e9; background: rgba(14, 165, 233, 0.1); }
+    .week-day .day-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+    .week-day .day-num { font-size: 16px; font-weight: 700; color: #e2e8f0; }
+    .week-day .day-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #334155;
+      transition: all 0.3s ease;
+    }
+    .week-day .day-dot.partial {
+      background: #f59e0b;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+    }
+    .week-day .day-dot.complete {
+      background: #10b981;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+    }
+    .week-label {
+      text-align: center;
+      font-size: 12px;
+      color: #475569;
+      font-weight: 500;
+      padding: 12px 0 4px;
+    }
   </style>
 </head>
 <body class="bg-surface-950 text-white min-h-screen flex flex-col">
 
   <!-- Header -->
-  <header class="pt-8 pb-4 px-6 text-center">
+  <header class="pt-8 pb-2 px-6 text-center">
     <h1 class="text-2xl font-bold tracking-tight">Checkpoint</h1>
     <p class="text-sm text-slate-400 mt-1">Training Roadmap Check-in</p>
   </header>
+
+  <!-- Week strip -->
+  <div id="week-strip-container">
+    <p class="week-label" id="week-label"></p>
+    <div class="week-strip" id="week-strip"></div>
+  </div>
 
   <!-- Progress dots -->
   <div id="progress" class="flex items-center justify-center gap-2 py-4">
@@ -341,8 +387,11 @@
     };
 
     const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const DAY_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
                      'July', 'August', 'September', 'October', 'November', 'December'];
+    const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     // ── Date helpers ────────────────────────────────────────────────
     function toDateStr(d) {
@@ -362,12 +411,104 @@
       document.getElementById('friendly-date').textContent = friendlyDate(val);
     }
 
+    // ── Week strip ──────────────────────────────────────────────────
+    function getWeekDays() {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + mondayOffset);
+
+      const days = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        days.push(d);
+      }
+      return days;
+    }
+
+    const COMPLETE_FIELDS = ['bodyweight', 'steps', 'diet', 'stepsAdhere', 'training', 'cardio', 'water'];
+
+    function getSubmissionStatus(dateStr) {
+      const raw = localStorage.getItem('checkpoint_' + dateStr);
+      if (!raw) return 'empty';
+      try {
+        const data = JSON.parse(raw);
+        const filled = COMPLETE_FIELDS.filter(f => data[f] !== undefined && data[f] !== '');
+        if (filled.length === 0) return 'empty';
+        if (filled.length >= COMPLETE_FIELDS.length) return 'complete';
+        return 'partial';
+      } catch { return 'empty'; }
+    }
+
+    function saveSubmissionHistory(dateStr, payload) {
+      const key = 'checkpoint_' + dateStr;
+      const existing = JSON.parse(localStorage.getItem(key) || '{}');
+      const merged = { ...existing };
+      COMPLETE_FIELDS.forEach(f => {
+        if (payload[f] !== undefined && payload[f] !== '') merged[f] = payload[f];
+      });
+      localStorage.setItem(key, JSON.stringify(merged));
+    }
+
+    function renderWeekStrip() {
+      const days = getWeekDays();
+      const todayStr = toDateStr(new Date());
+      const selectedStr = document.getElementById('field-date').value;
+      const strip = document.getElementById('week-strip');
+
+      const mon = days[0];
+      const sun = days[6];
+      document.getElementById('week-label').textContent =
+        `${mon.getDate()} ${MONTHS_SHORT[mon.getMonth()]} – ${sun.getDate()} ${MONTHS_SHORT[sun.getMonth()]}`;
+
+      strip.innerHTML = days.map(d => {
+        const ds = toDateStr(d);
+        const status = getSubmissionStatus(ds);
+        const isToday = ds === todayStr;
+        const isSelected = ds === selectedStr;
+        const classes = ['week-day'];
+        if (isToday) classes.push('is-today');
+        if (isSelected) classes.push('is-selected');
+
+        const dotClass = status === 'complete' ? 'complete' : status === 'partial' ? 'partial' : '';
+
+        return `<div class="${classes.join(' ')}" onclick="selectWeekDay('${ds}')" title="${friendlyDate(ds)}">
+          <span class="day-label">${DAY_SHORT[d.getDay()]}</span>
+          <span class="day-num">${d.getDate()}</span>
+          <span class="day-dot ${dotClass}"></span>
+        </div>`;
+      }).join('');
+    }
+
+    function selectWeekDay(dateStr) {
+      const dateInput = document.getElementById('field-date');
+      dateInput.value = dateStr;
+      dateInput.classList.add('hidden');
+      updateFriendlyDate();
+
+      const todayStr = toDateStr(new Date());
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterdayStr = toDateStr(yesterdayDate);
+
+      if (dateStr === todayStr) setActiveChip('chip-today');
+      else if (dateStr === yesterdayStr) setActiveChip('chip-yesterday');
+      else setActiveChip('chip-other');
+
+      renderWeekStrip();
+
+      if (currentStep === 0) goToStep(1);
+    }
+
     function setDateToday() {
       const dateInput = document.getElementById('field-date');
       dateInput.value = toDateStr(new Date());
       dateInput.classList.add('hidden');
       updateFriendlyDate();
       setActiveChip('chip-today');
+      renderWeekStrip();
     }
 
     function setDateYesterday() {
@@ -378,6 +519,7 @@
       dateInput.classList.add('hidden');
       updateFriendlyDate();
       setActiveChip('chip-yesterday');
+      renderWeekStrip();
     }
 
     function toggleCustomDate() {
@@ -389,6 +531,7 @@
 
     function onCustomDateChange() {
       updateFriendlyDate();
+      renderWeekStrip();
     }
 
     function setActiveChip(activeId) {
@@ -398,10 +541,11 @@
       document.getElementById(activeId).classList.add('active');
     }
 
-    // Init date
+    // Init date and week strip
     (function initDate() {
       document.getElementById('field-date').value = toDateStr(new Date());
       updateFriendlyDate();
+      renderWeekStrip();
     })();
 
     // ── Navigation ──────────────────────────────────────────────────
@@ -575,6 +719,8 @@
         delete window[callbackName];
         hideLoading();
         if (result && result.status === 'ok') {
+          saveSubmissionHistory(formData.date, payload);
+          renderWeekStrip();
           goToStep(10);
         } else {
           showError(result ? result.message : 'Unknown error');
@@ -599,6 +745,8 @@
           delete window[callbackName];
           try { document.body.removeChild(script); } catch(e) {}
           hideLoading();
+          saveSubmissionHistory(formData.date, payload);
+          renderWeekStrip();
           goToStep(10);
         }
       }, 15000);
@@ -641,6 +789,7 @@
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit';
 
+      renderWeekStrip();
       goToStep(0);
     }
 
