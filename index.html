@@ -77,6 +77,14 @@
     .btn-primary:active:not(:disabled) { transform: translateY(0); }
     .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    .btn-save-exit {
+      transition: all 0.2s ease;
+    }
+    .btn-save-exit:hover:not(:disabled) {
+      background: #1e293b;
+    }
+    .btn-save-exit:disabled { opacity: 0.4; cursor: not-allowed; }
+
     .review-row {
       display: flex;
       justify-content: space-between;
@@ -93,6 +101,13 @@
       0% { transform: scale(0); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
     }
+
+    .date-chip {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .date-chip:hover { background: #334155; }
+    .date-chip.active { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
   </style>
 </head>
 <body class="bg-surface-950 text-white min-h-screen flex flex-col">
@@ -122,11 +137,18 @@
     <div class="w-full max-w-md">
 
       <!-- Step 0: Date -->
-      <div class="step active flex-col gap-6" data-step="0">
+      <div class="step active flex-col gap-5" data-step="0">
         <label class="text-lg font-semibold text-slate-200">What date is this check-in for?</label>
+        <p id="friendly-date" class="text-3xl font-bold text-white"></p>
+        <div class="flex gap-3">
+          <button onclick="setDateToday()" id="chip-today" class="date-chip active border border-slate-600 rounded-lg px-4 py-2 text-sm font-medium text-slate-300">Today</button>
+          <button onclick="setDateYesterday()" id="chip-yesterday" class="date-chip border border-slate-600 rounded-lg px-4 py-2 text-sm font-medium text-slate-300">Yesterday</button>
+          <button onclick="toggleCustomDate()" id="chip-other" class="date-chip border border-slate-600 rounded-lg px-4 py-2 text-sm font-medium text-slate-300">Other</button>
+        </div>
         <input type="date" id="field-date"
-          class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-4 text-lg text-white focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500">
-        <div class="flex justify-end mt-4">
+          class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-3 text-base text-white focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 hidden"
+          onchange="onCustomDateChange()">
+        <div class="flex justify-end mt-2">
           <button onclick="nextStep()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Next</button>
         </div>
       </div>
@@ -136,9 +158,12 @@
         <label class="text-lg font-semibold text-slate-200">Bodyweight (kg)</label>
         <input type="number" id="field-bodyweight" step="0.01" placeholder="e.g. 74.80" inputmode="decimal"
           class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-4 text-3xl font-bold text-white text-center focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500">
-        <div class="flex justify-between mt-4">
+        <div class="flex justify-between items-center mt-4">
           <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
-          <button onclick="nextStep()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Next</button>
+          <div class="flex gap-3">
+            <button onclick="saveAndExit()" class="btn-save-exit border border-slate-600 text-slate-300 font-medium rounded-xl px-5 py-3 text-sm">Save & Exit</button>
+            <button onclick="nextStep()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Next</button>
+          </div>
         </div>
       </div>
 
@@ -147,9 +172,12 @@
         <label class="text-lg font-semibold text-slate-200">Steps</label>
         <input type="number" id="field-steps" placeholder="e.g. 8500" inputmode="numeric"
           class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-4 text-3xl font-bold text-white text-center focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500">
-        <div class="flex justify-between mt-4">
+        <div class="flex justify-between items-center mt-4">
           <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
-          <button onclick="nextStep()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Next</button>
+          <div class="flex gap-3">
+            <button onclick="saveAndExit()" class="btn-save-exit border border-slate-600 text-slate-300 font-medium rounded-xl px-5 py-3 text-sm">Save & Exit</button>
+            <button onclick="nextStep()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Next</button>
+          </div>
         </div>
       </div>
 
@@ -162,9 +190,12 @@
           <button onclick="selectYesNo('diet','No')" id="diet-no"
             class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
         </div>
-        <div class="flex justify-between mt-4">
+        <div class="flex justify-between items-center mt-4">
           <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
-          <button onclick="nextStep()" id="btn-next-3" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          <div class="flex gap-3">
+            <button onclick="saveAndExit()" class="btn-save-exit border border-slate-600 text-slate-300 font-medium rounded-xl px-5 py-3 text-sm">Save & Exit</button>
+            <button onclick="nextStep()" id="btn-next-3" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          </div>
         </div>
       </div>
 
@@ -177,9 +208,12 @@
           <button onclick="selectYesNo('stepsAdhere','No')" id="stepsAdhere-no"
             class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
         </div>
-        <div class="flex justify-between mt-4">
+        <div class="flex justify-between items-center mt-4">
           <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
-          <button onclick="nextStep()" id="btn-next-4" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          <div class="flex gap-3">
+            <button onclick="saveAndExit()" class="btn-save-exit border border-slate-600 text-slate-300 font-medium rounded-xl px-5 py-3 text-sm">Save & Exit</button>
+            <button onclick="nextStep()" id="btn-next-4" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          </div>
         </div>
       </div>
 
@@ -192,9 +226,12 @@
           <button onclick="selectYesNo('training','No')" id="training-no"
             class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
         </div>
-        <div class="flex justify-between mt-4">
+        <div class="flex justify-between items-center mt-4">
           <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
-          <button onclick="nextStep()" id="btn-next-5" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          <div class="flex gap-3">
+            <button onclick="saveAndExit()" class="btn-save-exit border border-slate-600 text-slate-300 font-medium rounded-xl px-5 py-3 text-sm">Save & Exit</button>
+            <button onclick="nextStep()" id="btn-next-5" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          </div>
         </div>
       </div>
 
@@ -207,9 +244,12 @@
           <button onclick="selectYesNo('cardio','No')" id="cardio-no"
             class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
         </div>
-        <div class="flex justify-between mt-4">
+        <div class="flex justify-between items-center mt-4">
           <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
-          <button onclick="nextStep()" id="btn-next-6" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          <div class="flex gap-3">
+            <button onclick="saveAndExit()" class="btn-save-exit border border-slate-600 text-slate-300 font-medium rounded-xl px-5 py-3 text-sm">Save & Exit</button>
+            <button onclick="nextStep()" id="btn-next-6" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          </div>
         </div>
       </div>
 
@@ -222,9 +262,12 @@
           <button onclick="selectYesNo('water','No')" id="water-no"
             class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
         </div>
-        <div class="flex justify-between mt-4">
+        <div class="flex justify-between items-center mt-4">
           <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
-          <button onclick="nextStep()" id="btn-next-7" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          <div class="flex gap-3">
+            <button onclick="saveAndExit()" class="btn-save-exit border border-slate-600 text-slate-300 font-medium rounded-xl px-5 py-3 text-sm">Save & Exit</button>
+            <button onclick="nextStep()" id="btn-next-7" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+          </div>
         </div>
       </div>
 
@@ -233,7 +276,7 @@
         <label class="text-lg font-semibold text-slate-200">Additional Comments</label>
         <textarea id="field-comments" rows="4" placeholder="Anything worth noting today? (optional)"
           class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-4 text-base text-white resize-none focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"></textarea>
-        <div class="flex justify-between mt-4">
+        <div class="flex justify-between items-center mt-4">
           <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
           <button onclick="showReview()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Review</button>
         </div>
@@ -290,13 +333,68 @@
       comments: ''
     };
 
-    // Set default date to today
+    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+                     'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // ── Date helpers ────────────────────────────────────────────────
+    function toDateStr(d) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function friendlyDate(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+    }
+
+    function updateFriendlyDate() {
+      const val = document.getElementById('field-date').value;
+      document.getElementById('friendly-date').textContent = friendlyDate(val);
+    }
+
+    function setDateToday() {
+      const dateInput = document.getElementById('field-date');
+      dateInput.value = toDateStr(new Date());
+      dateInput.classList.add('hidden');
+      updateFriendlyDate();
+      setActiveChip('chip-today');
+    }
+
+    function setDateYesterday() {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const dateInput = document.getElementById('field-date');
+      dateInput.value = toDateStr(yesterday);
+      dateInput.classList.add('hidden');
+      updateFriendlyDate();
+      setActiveChip('chip-yesterday');
+    }
+
+    function toggleCustomDate() {
+      const dateInput = document.getElementById('field-date');
+      dateInput.classList.remove('hidden');
+      dateInput.focus();
+      setActiveChip('chip-other');
+    }
+
+    function onCustomDateChange() {
+      updateFriendlyDate();
+    }
+
+    function setActiveChip(activeId) {
+      ['chip-today', 'chip-yesterday', 'chip-other'].forEach(id => {
+        document.getElementById(id).classList.remove('active');
+      });
+      document.getElementById(activeId).classList.add('active');
+    }
+
+    // Init date
     (function initDate() {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      document.getElementById('field-date').value = `${yyyy}-${mm}-${dd}`;
+      document.getElementById('field-date').value = toDateStr(new Date());
+      updateFriendlyDate();
     })();
 
     // ── Navigation ──────────────────────────────────────────────────
@@ -339,6 +437,13 @@
       }
     }
 
+    function saveAllFields() {
+      formData.date = document.getElementById('field-date').value;
+      formData.bodyweight = document.getElementById('field-bodyweight').value;
+      formData.steps = document.getElementById('field-steps').value;
+      formData.comments = document.getElementById('field-comments').value;
+    }
+
     // ── Yes/No selection ────────────────────────────────────────────
     function selectYesNo(field, value) {
       formData[field] = value;
@@ -363,9 +468,14 @@
     // ── Review ──────────────────────────────────────────────────────
     function showReview() {
       saveCurrentField();
+      buildReviewList();
+      document.getElementById('submit-error').classList.add('hidden');
+      goToStep(9);
+    }
 
+    function buildReviewList() {
       const dateObj = new Date(formData.date + 'T00:00:00');
-      const displayDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+      const displayDate = friendlyDate(formData.date);
 
       const adherenceLabel = (val) => {
         if (val === 'Yes') return '<span class="text-emerald-400 font-semibold">Yes</span>';
@@ -375,8 +485,8 @@
 
       const rows = [
         { label: 'Date', value: displayDate },
-        { label: 'Bodyweight', value: formData.bodyweight ? `${formData.bodyweight} kg` : '—' },
-        { label: 'Steps', value: formData.steps || '—' },
+        { label: 'Bodyweight', value: formData.bodyweight ? `${formData.bodyweight} kg` : '<span class="text-slate-500">—</span>' },
+        { label: 'Steps', value: formData.steps || '<span class="text-slate-500">—</span>' },
         { label: 'Diet', value: adherenceLabel(formData.diet) },
         { label: 'Steps target', value: adherenceLabel(formData.stepsAdhere) },
         { label: 'Training', value: adherenceLabel(formData.training) },
@@ -391,25 +501,36 @@
           <span class="text-white text-sm">${r.value}</span>
         </div>`
       ).join('');
+    }
 
-      document.getElementById('submit-error').classList.add('hidden');
-      goToStep(9);
+    // ── Save & Exit ─────────────────────────────────────────────────
+    async function saveAndExit() {
+      saveCurrentField();
+      saveAllFields();
+
+      if (!formData.date) {
+        alert('Please select a date first.');
+        return;
+      }
+
+      await doSubmit();
     }
 
     // ── Submit ──────────────────────────────────────────────────────
     async function submitData() {
-      const btn = document.getElementById('btn-submit');
+      await doSubmit();
+    }
+
+    async function doSubmit() {
       const errorEl = document.getElementById('submit-error');
       errorEl.classList.add('hidden');
 
       if (!SCRIPT_URL) {
         errorEl.textContent = 'Apps Script URL not configured. Set SCRIPT_URL in the code.';
         errorEl.classList.remove('hidden');
+        goToStep(9);
         return;
       }
-
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
 
       const dateObj = new Date(formData.date + 'T00:00:00');
       const sheetDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
@@ -427,7 +548,7 @@
       };
 
       try {
-        const res = await fetch(SCRIPT_URL, {
+        await fetch(SCRIPT_URL, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain' },
@@ -437,8 +558,7 @@
       } catch (err) {
         errorEl.textContent = 'Failed to save. Check your connection and try again.';
         errorEl.classList.remove('hidden');
-        btn.disabled = false;
-        btn.textContent = 'Submit';
+        goToStep(9);
       }
     }
 
@@ -446,11 +566,11 @@
     function resetForm() {
       Object.keys(formData).forEach(k => formData[k] = '');
 
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      document.getElementById('field-date').value = `${yyyy}-${mm}-${dd}`;
+      document.getElementById('field-date').value = toDateStr(new Date());
+      updateFriendlyDate();
+      setActiveChip('chip-today');
+      document.getElementById('field-date').classList.add('hidden');
+
       document.getElementById('field-bodyweight').value = '';
       document.getElementById('field-steps').value = '';
       document.getElementById('field-comments').value = '';
