@@ -5,7 +5,8 @@
  * 1. Open your Google Sheet ("Gautam Prabhu Roadmap test")
  * 2. Extensions → Apps Script
  * 3. Delete any existing code, paste this entire file
- * 4. Click Deploy → New deployment
+ * 4. Click Deploy → Manage deployments → Edit → Version: New version → Deploy
+ *    (Or Deploy → New deployment if first time)
  *    - Type: Web app
  *    - Execute as: Me
  *    - Who has access: Anyone
@@ -20,9 +21,7 @@ function doPost(e) {
     var sheet = ss.getSheetByName('Check-In Sheet');
 
     if (!sheet) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ status: 'error', message: 'Sheet "Check-In Sheet" not found' }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return respond({ status: 'error', message: 'Sheet "Check-In Sheet" not found' });
     }
 
     var dateToFind = data.date; // e.g. "14/3"
@@ -31,17 +30,23 @@ function doPost(e) {
 
     var targetRow = -1;
     for (var i = 0; i < dateCol.length; i++) {
-      var cellValue = String(dateCol[i][0]).trim();
-      if (cellValue === dateToFind) {
+      var cellValue = dateCol[i][0];
+      var cellStr = '';
+
+      if (cellValue instanceof Date) {
+        cellStr = cellValue.getDate() + '/' + (cellValue.getMonth() + 1);
+      } else {
+        cellStr = String(cellValue).trim();
+      }
+
+      if (cellStr === dateToFind) {
         targetRow = i + 1;
         break;
       }
     }
 
     if (targetRow === -1) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ status: 'error', message: 'Date "' + dateToFind + '" not found in column A' }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return respond({ status: 'error', message: 'Date "' + dateToFind + '" not found in column A' });
     }
 
     // Column mapping (1-indexed):
@@ -55,14 +60,10 @@ function doPost(e) {
     if (data.water)            sheet.getRange(targetRow, 8).setValue(data.water);
     if (data.comments)         sheet.getRange(targetRow, 9).setValue(data.comments);
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: 'ok', row: targetRow }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return respond({ status: 'ok', row: targetRow, date: dateToFind });
 
   } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return respond({ status: 'error', message: err.toString() });
   }
 }
 
@@ -70,4 +71,10 @@ function doGet(e) {
   return ContentService
     .createTextOutput('Checkpoint backend is running.')
     .setMimeType(ContentService.MimeType.TEXT);
+}
+
+function respond(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }

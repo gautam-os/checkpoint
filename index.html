@@ -526,9 +526,7 @@
       errorEl.classList.add('hidden');
 
       if (!SCRIPT_URL) {
-        errorEl.textContent = 'Apps Script URL not configured. Set SCRIPT_URL in the code.';
-        errorEl.classList.remove('hidden');
-        goToStep(9);
+        showError('Apps Script URL not configured. Set SCRIPT_URL in the code.');
         return;
       }
 
@@ -548,16 +546,34 @@
       };
 
       try {
-        await fetch(SCRIPT_URL, {
+        const res = await fetch(SCRIPT_URL, {
           method: 'POST',
-          mode: 'no-cors',
+          redirect: 'follow',
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify(payload)
         });
-        goToStep(10);
+        const text = await res.text();
+        try {
+          const result = JSON.parse(text);
+          if (result.status === 'ok') {
+            goToStep(10);
+          } else {
+            showError(result.message || 'Unknown error from script.');
+          }
+        } catch (parseErr) {
+          goToStep(10);
+        }
       } catch (err) {
-        errorEl.textContent = 'Failed to save. Check your connection and try again.';
-        errorEl.classList.remove('hidden');
+        showError('Failed to save. Check your connection and try again.');
+      }
+    }
+
+    function showError(msg) {
+      const errorEl = document.getElementById('submit-error');
+      errorEl.textContent = msg;
+      errorEl.classList.remove('hidden');
+      if (currentStep !== 9) {
+        buildReviewList();
         goToStep(9);
       }
     }
