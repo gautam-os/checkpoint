@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkpoint</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['DM Sans', 'system-ui', 'sans-serif'] },
+          colors: {
+            surface: { 50: '#f8fafc', 100: '#f1f5f9', 800: '#1e1e2e', 900: '#121220', 950: '#0c0c18' },
+            accent: { 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+
+    .step { display: none; opacity: 0; transform: translateY(12px); }
+    .step.active { display: flex; animation: fadeUp 0.3s ease forwards; }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .yes-no-btn {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .yes-no-btn:hover { transform: scale(1.03); }
+    .yes-no-btn.selected-yes {
+      background: #059669;
+      border-color: #059669;
+      color: #fff;
+    }
+    .yes-no-btn.selected-no {
+      background: #dc2626;
+      border-color: #dc2626;
+      color: #fff;
+    }
+
+    .progress-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #334155;
+      transition: all 0.3s ease;
+    }
+    .progress-dot.filled { background: #0ea5e9; transform: scale(1.25); }
+    .progress-dot.completed { background: #38bdf8; }
+
+    input[type="number"], input[type="date"], textarea {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] { -moz-appearance: textfield; }
+
+    .btn-primary {
+      transition: all 0.2s ease;
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);
+    }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .review-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #1e293b;
+    }
+    .review-row:last-child { border-bottom: none; }
+
+    .success-check {
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="bg-surface-950 text-white min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="pt-8 pb-4 px-6 text-center">
+    <h1 class="text-2xl font-bold tracking-tight">Checkpoint</h1>
+    <p class="text-sm text-slate-400 mt-1">Training Roadmap Check-in</p>
+  </header>
+
+  <!-- Progress dots -->
+  <div id="progress" class="flex items-center justify-center gap-2 py-4">
+    <div class="progress-dot filled" data-step="0"></div>
+    <div class="progress-dot" data-step="1"></div>
+    <div class="progress-dot" data-step="2"></div>
+    <div class="progress-dot" data-step="3"></div>
+    <div class="progress-dot" data-step="4"></div>
+    <div class="progress-dot" data-step="5"></div>
+    <div class="progress-dot" data-step="6"></div>
+    <div class="progress-dot" data-step="7"></div>
+    <div class="progress-dot" data-step="8"></div>
+    <div class="progress-dot" data-step="9"></div>
+  </div>
+
+  <!-- Steps container -->
+  <main class="flex-1 flex flex-col items-center justify-center px-6 pb-8">
+    <div class="w-full max-w-md">
+
+      <!-- Step 0: Date -->
+      <div class="step active flex-col gap-6" data-step="0">
+        <label class="text-lg font-semibold text-slate-200">What date is this check-in for?</label>
+        <input type="date" id="field-date"
+          class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-4 text-lg text-white focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500">
+        <div class="flex justify-end mt-4">
+          <button onclick="nextStep()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 1: Bodyweight -->
+      <div class="step flex-col gap-6" data-step="1">
+        <label class="text-lg font-semibold text-slate-200">Bodyweight (kg)</label>
+        <input type="number" id="field-bodyweight" step="0.01" placeholder="e.g. 74.80" inputmode="decimal"
+          class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-4 text-3xl font-bold text-white text-center focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500">
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="nextStep()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Steps -->
+      <div class="step flex-col gap-6" data-step="2">
+        <label class="text-lg font-semibold text-slate-200">Steps</label>
+        <input type="number" id="field-steps" placeholder="e.g. 8500" inputmode="numeric"
+          class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-4 text-3xl font-bold text-white text-center focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500">
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="nextStep()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Diet -->
+      <div class="step flex-col gap-6" data-step="3">
+        <label class="text-lg font-semibold text-slate-200">Did you adhere fully to your Diet?</label>
+        <div class="flex gap-4">
+          <button onclick="selectYesNo('diet','Yes')" id="diet-yes"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">Yes</button>
+          <button onclick="selectYesNo('diet','No')" id="diet-no"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
+        </div>
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="nextStep()" id="btn-next-3" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Steps adherence -->
+      <div class="step flex-col gap-6" data-step="4">
+        <label class="text-lg font-semibold text-slate-200">Did you adhere fully to your Steps target?</label>
+        <div class="flex gap-4">
+          <button onclick="selectYesNo('stepsAdhere','Yes')" id="stepsAdhere-yes"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">Yes</button>
+          <button onclick="selectYesNo('stepsAdhere','No')" id="stepsAdhere-no"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
+        </div>
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="nextStep()" id="btn-next-4" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+        </div>
+      </div>
+
+      <!-- Step 5: Training -->
+      <div class="step flex-col gap-6" data-step="5">
+        <label class="text-lg font-semibold text-slate-200">Did you adhere fully to your Training?</label>
+        <div class="flex gap-4">
+          <button onclick="selectYesNo('training','Yes')" id="training-yes"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">Yes</button>
+          <button onclick="selectYesNo('training','No')" id="training-no"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
+        </div>
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="nextStep()" id="btn-next-5" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+        </div>
+      </div>
+
+      <!-- Step 6: Cardio -->
+      <div class="step flex-col gap-6" data-step="6">
+        <label class="text-lg font-semibold text-slate-200">Did you adhere fully to your Cardio?</label>
+        <div class="flex gap-4">
+          <button onclick="selectYesNo('cardio','Yes')" id="cardio-yes"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">Yes</button>
+          <button onclick="selectYesNo('cardio','No')" id="cardio-no"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
+        </div>
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="nextStep()" id="btn-next-6" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+        </div>
+      </div>
+
+      <!-- Step 7: Water -->
+      <div class="step flex-col gap-6" data-step="7">
+        <label class="text-lg font-semibold text-slate-200">Did you adhere fully to your Water intake?</label>
+        <div class="flex gap-4">
+          <button onclick="selectYesNo('water','Yes')" id="water-yes"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">Yes</button>
+          <button onclick="selectYesNo('water','No')" id="water-no"
+            class="yes-no-btn flex-1 border-2 border-slate-600 rounded-xl py-5 text-xl font-semibold text-slate-300">No</button>
+        </div>
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="nextStep()" id="btn-next-7" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3" disabled>Next</button>
+        </div>
+      </div>
+
+      <!-- Step 8: Comments -->
+      <div class="step flex-col gap-6" data-step="8">
+        <label class="text-lg font-semibold text-slate-200">Additional Comments</label>
+        <textarea id="field-comments" rows="4" placeholder="Anything worth noting today? (optional)"
+          class="w-full bg-surface-800 border border-slate-700 rounded-xl px-4 py-4 text-base text-white resize-none focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"></textarea>
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="showReview()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3">Review</button>
+        </div>
+      </div>
+
+      <!-- Step 9: Review -->
+      <div class="step flex-col gap-4" data-step="9">
+        <h2 class="text-xl font-bold text-white mb-2">Review your check-in</h2>
+        <div id="review-list" class="bg-surface-800 rounded-xl px-5 py-3"></div>
+        <div id="submit-error" class="text-red-400 text-sm text-center hidden"></div>
+        <div class="flex justify-between mt-4">
+          <button onclick="prevStep()" class="text-slate-400 hover:text-white font-medium px-4 py-3 transition">Back</button>
+          <button onclick="submitData()" id="btn-submit" class="btn-primary bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl px-8 py-3">Submit</button>
+        </div>
+      </div>
+
+      <!-- Step 10: Success -->
+      <div class="step flex-col items-center gap-6 text-center" data-step="10">
+        <div class="success-check w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center">
+          <svg class="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-white">Check-in saved</h2>
+        <p class="text-slate-400">Your data has been written to the sheet.</p>
+        <button onclick="resetForm()" class="btn-primary bg-accent-500 hover:bg-accent-600 text-white font-semibold rounded-xl px-8 py-3 mt-4">Log another day</button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-slate-600 py-4">
+    Checkpoint &middot; Training Roadmap Check-in
+  </footer>
+
+  <script>
+    // ── Config ──────────────────────────────────────────────────────
+    // After deploying your Apps Script, paste the Web App URL here:
+    const SCRIPT_URL = '';
+
+    // ── State ───────────────────────────────────────────────────────
+    let currentStep = 0;
+    const totalSteps = 10;
+    const formData = {
+      date: '',
+      bodyweight: '',
+      steps: '',
+      diet: '',
+      stepsAdhere: '',
+      training: '',
+      cardio: '',
+      water: '',
+      comments: ''
+    };
+
+    // Set default date to today
+    (function initDate() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('field-date').value = `${yyyy}-${mm}-${dd}`;
+    })();
+
+    // ── Navigation ──────────────────────────────────────────────────
+    function goToStep(n) {
+      document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+      const target = document.querySelector(`.step[data-step="${n}"]`);
+      if (target) target.classList.add('active');
+      currentStep = n;
+      updateProgress();
+    }
+
+    function nextStep() {
+      saveCurrentField();
+      if (currentStep < totalSteps) goToStep(currentStep + 1);
+    }
+
+    function prevStep() {
+      if (currentStep > 0) goToStep(currentStep - 1);
+    }
+
+    function updateProgress() {
+      document.querySelectorAll('.progress-dot').forEach(dot => {
+        const s = parseInt(dot.dataset.step);
+        dot.classList.remove('filled', 'completed');
+        if (s === currentStep) dot.classList.add('filled');
+        else if (s < currentStep) dot.classList.add('completed');
+      });
+
+      const progressEl = document.getElementById('progress');
+      progressEl.style.display = (currentStep >= 10) ? 'none' : 'flex';
+    }
+
+    // ── Save field values ───────────────────────────────────────────
+    function saveCurrentField() {
+      switch (currentStep) {
+        case 0: formData.date = document.getElementById('field-date').value; break;
+        case 1: formData.bodyweight = document.getElementById('field-bodyweight').value; break;
+        case 2: formData.steps = document.getElementById('field-steps').value; break;
+        case 8: formData.comments = document.getElementById('field-comments').value; break;
+      }
+    }
+
+    // ── Yes/No selection ────────────────────────────────────────────
+    function selectYesNo(field, value) {
+      formData[field] = value;
+      const yesBtn = document.getElementById(`${field}-yes`);
+      const noBtn = document.getElementById(`${field}-no`);
+
+      yesBtn.classList.remove('selected-yes', 'selected-no');
+      noBtn.classList.remove('selected-yes', 'selected-no');
+
+      if (value === 'Yes') {
+        yesBtn.classList.add('selected-yes');
+      } else {
+        noBtn.classList.add('selected-no');
+      }
+
+      const stepEl = yesBtn.closest('.step');
+      const stepIdx = parseInt(stepEl.dataset.step);
+      const nextBtn = document.getElementById(`btn-next-${stepIdx}`);
+      if (nextBtn) nextBtn.disabled = false;
+    }
+
+    // ── Review ──────────────────────────────────────────────────────
+    function showReview() {
+      saveCurrentField();
+
+      const dateObj = new Date(formData.date + 'T00:00:00');
+      const displayDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+
+      const adherenceLabel = (val) => {
+        if (val === 'Yes') return '<span class="text-emerald-400 font-semibold">Yes</span>';
+        if (val === 'No') return '<span class="text-red-400 font-semibold">No</span>';
+        return '<span class="text-slate-500">—</span>';
+      };
+
+      const rows = [
+        { label: 'Date', value: displayDate },
+        { label: 'Bodyweight', value: formData.bodyweight ? `${formData.bodyweight} kg` : '—' },
+        { label: 'Steps', value: formData.steps || '—' },
+        { label: 'Diet', value: adherenceLabel(formData.diet) },
+        { label: 'Steps target', value: adherenceLabel(formData.stepsAdhere) },
+        { label: 'Training', value: adherenceLabel(formData.training) },
+        { label: 'Cardio', value: adherenceLabel(formData.cardio) },
+        { label: 'Water', value: adherenceLabel(formData.water) },
+        { label: 'Comments', value: formData.comments || '<span class="text-slate-500">—</span>' },
+      ];
+
+      document.getElementById('review-list').innerHTML = rows.map(r =>
+        `<div class="review-row">
+          <span class="text-slate-400 text-sm">${r.label}</span>
+          <span class="text-white text-sm">${r.value}</span>
+        </div>`
+      ).join('');
+
+      document.getElementById('submit-error').classList.add('hidden');
+      goToStep(9);
+    }
+
+    // ── Submit ──────────────────────────────────────────────────────
+    async function submitData() {
+      const btn = document.getElementById('btn-submit');
+      const errorEl = document.getElementById('submit-error');
+      errorEl.classList.add('hidden');
+
+      if (!SCRIPT_URL) {
+        errorEl.textContent = 'Apps Script URL not configured. Set SCRIPT_URL in the code.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      const dateObj = new Date(formData.date + 'T00:00:00');
+      const sheetDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+
+      const payload = {
+        date: sheetDate,
+        bodyweight: formData.bodyweight ? parseFloat(formData.bodyweight) : '',
+        steps: formData.steps ? parseFloat(formData.steps) : '',
+        diet: formData.diet,
+        stepsAdhere: formData.stepsAdhere,
+        training: formData.training,
+        cardio: formData.cardio,
+        water: formData.water,
+        comments: formData.comments
+      };
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(payload)
+        });
+        goToStep(10);
+      } catch (err) {
+        errorEl.textContent = 'Failed to save. Check your connection and try again.';
+        errorEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+      }
+    }
+
+    // ── Reset ───────────────────────────────────────────────────────
+    function resetForm() {
+      Object.keys(formData).forEach(k => formData[k] = '');
+
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('field-date').value = `${yyyy}-${mm}-${dd}`;
+      document.getElementById('field-bodyweight').value = '';
+      document.getElementById('field-steps').value = '';
+      document.getElementById('field-comments').value = '';
+
+      ['diet', 'stepsAdhere', 'training', 'cardio', 'water'].forEach(field => {
+        document.getElementById(`${field}-yes`).classList.remove('selected-yes');
+        document.getElementById(`${field}-no`).classList.remove('selected-no');
+      });
+
+      [3,4,5,6,7].forEach(i => {
+        const btn = document.getElementById(`btn-next-${i}`);
+        if (btn) btn.disabled = true;
+      });
+
+      const submitBtn = document.getElementById('btn-submit');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+
+      goToStep(0);
+    }
+
+    // ── Keyboard: Enter to advance ──────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && currentStep <= 2) {
+        e.preventDefault();
+        nextStep();
+      }
+    });
+  </script>
+</body>
+</html>
