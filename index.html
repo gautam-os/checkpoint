@@ -482,10 +482,58 @@
       }).join('');
     }
 
-    function selectWeekDay(dateStr) {
+    function clearFormFields() {
+      Object.keys(formData).forEach(k => { if (k !== 'date') formData[k] = ''; });
+
+      document.getElementById('field-bodyweight').value = '';
+      document.getElementById('field-steps').value = '';
+      document.getElementById('field-comments').value = '';
+
+      ['diet', 'stepsAdhere', 'training', 'cardio', 'water'].forEach(field => {
+        document.getElementById(`${field}-yes`).classList.remove('selected-yes');
+        document.getElementById(`${field}-no`).classList.remove('selected-no');
+      });
+
+      [3,4,5,6,7].forEach(i => {
+        const btn = document.getElementById(`btn-next-${i}`);
+        if (btn) btn.disabled = true;
+      });
+
+      const submitBtn = document.getElementById('btn-submit');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit';
+      }
+    }
+
+    function loadSavedData(dateStr) {
+      const raw = localStorage.getItem('checkpoint_' + dateStr);
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        if (data.bodyweight) {
+          document.getElementById('field-bodyweight').value = data.bodyweight;
+          formData.bodyweight = String(data.bodyweight);
+        }
+        if (data.steps) {
+          document.getElementById('field-steps').value = data.steps;
+          formData.steps = String(data.steps);
+        }
+        if (data.comments) {
+          document.getElementById('field-comments').value = data.comments;
+          formData.comments = data.comments;
+        }
+        ['diet', 'stepsAdhere', 'training', 'cardio', 'water'].forEach(field => {
+          if (data[field]) selectYesNo(field, data[field]);
+        });
+      } catch {}
+    }
+
+    function switchToDate(dateStr) {
       const dateInput = document.getElementById('field-date');
       dateInput.value = dateStr;
       dateInput.classList.add('hidden');
+      formData.date = dateStr;
       updateFriendlyDate();
 
       const todayStr = toDateStr(new Date());
@@ -497,29 +545,24 @@
       else if (dateStr === yesterdayStr) setActiveChip('chip-yesterday');
       else setActiveChip('chip-other');
 
+      clearFormFields();
+      loadSavedData(dateStr);
       renderWeekStrip();
+    }
 
-      if (currentStep === 0) goToStep(1);
+    function selectWeekDay(dateStr) {
+      switchToDate(dateStr);
+      goToStep(0);
     }
 
     function setDateToday() {
-      const dateInput = document.getElementById('field-date');
-      dateInput.value = toDateStr(new Date());
-      dateInput.classList.add('hidden');
-      updateFriendlyDate();
-      setActiveChip('chip-today');
-      renderWeekStrip();
+      switchToDate(toDateStr(new Date()));
     }
 
     function setDateYesterday() {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const dateInput = document.getElementById('field-date');
-      dateInput.value = toDateStr(yesterday);
-      dateInput.classList.add('hidden');
-      updateFriendlyDate();
-      setActiveChip('chip-yesterday');
-      renderWeekStrip();
+      switchToDate(toDateStr(yesterday));
     }
 
     function toggleCustomDate() {
@@ -530,7 +573,11 @@
     }
 
     function onCustomDateChange() {
+      const dateStr = document.getElementById('field-date').value;
+      formData.date = dateStr;
       updateFriendlyDate();
+      clearFormFields();
+      loadSavedData(dateStr);
       renderWeekStrip();
     }
 
@@ -543,8 +590,11 @@
 
     // Init date and week strip
     (function initDate() {
-      document.getElementById('field-date').value = toDateStr(new Date());
+      const todayStr = toDateStr(new Date());
+      document.getElementById('field-date').value = todayStr;
+      formData.date = todayStr;
       updateFriendlyDate();
+      loadSavedData(todayStr);
       renderWeekStrip();
     })();
 
@@ -764,32 +814,7 @@
 
     // ── Reset ───────────────────────────────────────────────────────
     function resetForm() {
-      Object.keys(formData).forEach(k => formData[k] = '');
-
-      document.getElementById('field-date').value = toDateStr(new Date());
-      updateFriendlyDate();
-      setActiveChip('chip-today');
-      document.getElementById('field-date').classList.add('hidden');
-
-      document.getElementById('field-bodyweight').value = '';
-      document.getElementById('field-steps').value = '';
-      document.getElementById('field-comments').value = '';
-
-      ['diet', 'stepsAdhere', 'training', 'cardio', 'water'].forEach(field => {
-        document.getElementById(`${field}-yes`).classList.remove('selected-yes');
-        document.getElementById(`${field}-no`).classList.remove('selected-no');
-      });
-
-      [3,4,5,6,7].forEach(i => {
-        const btn = document.getElementById(`btn-next-${i}`);
-        if (btn) btn.disabled = true;
-      });
-
-      const submitBtn = document.getElementById('btn-submit');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Submit';
-
-      renderWeekStrip();
+      switchToDate(toDateStr(new Date()));
       goToStep(0);
     }
 
