@@ -19,59 +19,12 @@ function doPost(e) {
       return respond({ status: 'error', message: 'Sheet "Check-In Sheet" not found' });
     }
 
-    var dateToFind = data.date; // e.g. "14/3"
-    var lastRow = sheet.getLastRow();
-    var dateCol = sheet.getRange(1, 1, lastRow, 1).getValues();
-    var displayFormats = sheet.getRange(1, 1, lastRow, 1).getDisplayValues();
-
-    var targetRow = -1;
-    for (var i = 0; i < dateCol.length; i++) {
-      var cellValue = dateCol[i][0];
-
-      // Try display value first (what you see in the sheet)
-      var displayStr = String(displayFormats[i][0]).trim();
-      if (displayStr === dateToFind) {
-        targetRow = i + 1;
-        break;
-      }
-
-      // Try Date object conversion
-      if (cellValue instanceof Date && !isNaN(cellValue.getTime())) {
-        var dateStr = cellValue.getDate() + '/' + (cellValue.getMonth() + 1);
-        if (dateStr === dateToFind) {
-          targetRow = i + 1;
-          break;
-        }
-      }
-
-      // Try raw string match
-      var rawStr = String(cellValue).trim();
-      if (rawStr === dateToFind) {
-        targetRow = i + 1;
-        break;
-      }
-    }
+    var targetRow = findDateRow(sheet, data.date);
 
     if (targetRow === -1) {
-      // Log some sample values for debugging
-      var samples = [];
-      for (var j = 0; j < Math.min(dateCol.length, 100); j++) {
-        var v = dateCol[j][0];
-        var d = displayFormats[j][0];
-        if (v !== '' && d !== '') {
-          samples.push('Row ' + (j+1) + ': display="' + d + '" raw="' + v + '" type=' + typeof v);
-        }
-        if (samples.length >= 10) break;
-      }
-      return respond({
-        status: 'error',
-        message: 'Date "' + dateToFind + '" not found in column A',
-        debug_samples: samples
-      });
+      return respond({ status: 'error', message: 'Date "' + data.date + '" not found in column A' });
     }
 
-    // Column mapping (1-indexed):
-    // A=1 Date | B=2 Bodyweight | C=3 Steps | D=4 Diet | E=5 Steps | F=6 Training | G=7 Cardio | H=8 Water | I=9 Comments
     if (data.bodyweight !== '') sheet.getRange(targetRow, 2).setValue(data.bodyweight);
     if (data.steps !== '')     sheet.getRange(targetRow, 3).setValue(data.steps);
     if (data.diet)             sheet.getRange(targetRow, 4).setValue(data.diet);
@@ -81,42 +34,126 @@ function doPost(e) {
     if (data.water)            sheet.getRange(targetRow, 8).setValue(data.water);
     if (data.comments)         sheet.getRange(targetRow, 9).setValue(data.comments);
 
-    return respond({ status: 'ok', row: targetRow, date: dateToFind });
+    return respond({ status: 'ok', row: targetRow, date: data.date });
 
   } catch (err) {
     return respond({ status: 'error', message: err.toString() });
   }
 }
 
+/**
+ * Find the first row in column A that matches the given date string (e.g. "14/3").
+ * Handles: Date objects (including Apps Script date quirks), text like "14/3", "14/03", "14/03/2026".
+ */
+function findDateRow(sheet, dateToFind) {
+  var parts = dateToFind.split('/');
+  var targetDay = parseInt(parts[0], 10);
+  var targetMonth = parseInt(parts[1], 10);
+
+  var lastRow = sheet.getLastRow();
+  var dateCol = sheet.getRange(1, 1, lastRow, 1).getValues();
+
+  for (var i = 0; i < dateCol.length; i++) {
+    var cellValue = dateCol[i][0];
+    if (!cellValue && cellValue !== 0) continue;
+
+    var day = -1, month = -1;
+
+    // Try calling getDate/getMonth (works for Date objects even when instanceof fails)
+    try {
+      if (typeof cellValue === 'object' && cellValue.getDate && cellValue.getMonth) {
+        day = cellValue.getDate();
+        month = cellValue.getMonth() + 1;
+      }
+    } catch (e) {}
+
+    // Fall back to string parsing
+    if (day === -1) {
+      var str = String(cellValue).trim();
+      // Try d/m or dd/mm format
+      var m = str.match(/^(\d{1,2})\/(\d{1,2})/);
+      if (m) {
+        day = parseInt(m[1], 10);
+        month = parseInt(m[2], 10);
+      } else {
+        // Try parsing full date strings like "Sat Mar 14 2026 ..."
+        var monthNames = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
+        var dm = str.match(/(\w{3})\s+(\d{1,2})\s+\d{4}/);
+        if (dm && monthNames[dm[1]]) {
+          day = parseInt(dm[2], 10);
+          month = monthNames[dm[1]];
+        }
+      }
+    }
+
+    if (day === targetDay && month === targetMonth) {
+      return i + 1;
+    }
+  }
+
+  return -1;
+}
+
 function doGet(e) {
-  // If called with ?test=DATE, try to find the date and return debug info
   if (e && e.parameter && e.parameter.test) {
-    var dateToFind = e.parameter.test;
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Check-In Sheet');
     if (!sheet) return respond({ error: 'Sheet not found' });
 
+    var dateToFind = e.parameter.test;
+    var row = findDateRow(sheet, dateToFind);
+
     var lastRow = sheet.getLastRow();
     var dateCol = sheet.getRange(1, 1, lastRow, 1).getValues();
-    var displayFormats = sheet.getRange(1, 1, lastRow, 1).getDisplayValues();
 
-    var samples = [];
-    var found = -1;
+    var allMatches = [];
+    var parts = dateToFind.split('/');
+    var targetDay = parseInt(parts[0], 10);
+    var targetMonth = parseInt(parts[1], 10);
+    var monthNames = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
+
     for (var i = 0; i < dateCol.length; i++) {
-      var v = dateCol[i][0];
-      var d = String(displayFormats[i][0]).trim();
-      if (d === dateToFind) { found = i + 1; }
-      if (v !== '' && d !== '' && samples.length < 15) {
-        samples.push({
-          row: i + 1,
-          display: d,
-          raw: String(v),
-          type: typeof v,
-          isDate: v instanceof Date
-        });
+      var cellValue = dateCol[i][0];
+      if (!cellValue && cellValue !== 0) continue;
+      var day = -1, month = -1;
+      try {
+        if (typeof cellValue === 'object' && cellValue.getDate && cellValue.getMonth) {
+          day = cellValue.getDate();
+          month = cellValue.getMonth() + 1;
+        }
+      } catch (e) {}
+      if (day === -1) {
+        var str = String(cellValue).trim();
+        var m = str.match(/^(\d{1,2})\/(\d{1,2})/);
+        if (m) { day = parseInt(m[1], 10); month = parseInt(m[2], 10); }
+        else {
+          var dm = str.match(/(\w{3})\s+(\d{1,2})\s+\d{4}/);
+          if (dm && monthNames[dm[1]]) { day = parseInt(dm[2], 10); month = monthNames[dm[1]]; }
+        }
+      }
+      if (day === targetDay && month === targetMonth) {
+        allMatches.push(i + 1);
       }
     }
-    return respond({ looking_for: dateToFind, found_row: found, samples: samples });
+
+    // Show what's around the expected area (rows 80-95)
+    var nearby = [];
+    for (var j = 79; j < Math.min(95, dateCol.length); j++) {
+      var v = dateCol[j][0];
+      nearby.push({
+        row: j + 1,
+        value: String(v),
+        type: typeof v,
+        isDate: v instanceof Date
+      });
+    }
+
+    return respond({
+      looking_for: dateToFind,
+      first_match: row,
+      all_matches: allMatches,
+      rows_80_to_95: nearby
+    });
   }
 
   return ContentService
