@@ -308,6 +308,12 @@
     </div>
   </main>
 
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="hidden fixed inset-0 bg-surface-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
+    <div class="w-10 h-10 border-4 border-slate-600 border-t-accent-500 rounded-full animate-spin"></div>
+    <p class="text-slate-300 font-medium">Saving to sheet...</p>
+  </div>
+
   <!-- Footer -->
   <footer class="text-center text-xs text-slate-600 py-4">
     Checkpoint &middot; Training Roadmap Check-in
@@ -503,6 +509,15 @@
       ).join('');
     }
 
+    // ── Loading overlay ────────────────────────────────────────────
+    function showLoading() {
+      document.getElementById('loading-overlay').classList.remove('hidden');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }
+
     // ── Save & Exit ─────────────────────────────────────────────────
     async function saveAndExit() {
       saveCurrentField();
@@ -530,6 +545,8 @@
         return;
       }
 
+      showLoading();
+
       const dateObj = new Date(formData.date + 'T00:00:00');
       const sheetDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
 
@@ -548,22 +565,14 @@
       try {
         const res = await fetch(SCRIPT_URL, {
           method: 'POST',
-          redirect: 'follow',
+          mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify(payload)
         });
-        const text = await res.text();
-        try {
-          const result = JSON.parse(text);
-          if (result.status === 'ok') {
-            goToStep(10);
-          } else {
-            showError(result.message || 'Unknown error from script.');
-          }
-        } catch (parseErr) {
-          goToStep(10);
-        }
+        hideLoading();
+        goToStep(10);
       } catch (err) {
+        hideLoading();
         showError('Failed to save. Check your connection and try again.');
       }
     }

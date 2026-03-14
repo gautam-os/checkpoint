@@ -5,13 +5,8 @@
  * 1. Open your Google Sheet ("Gautam Prabhu Roadmap test")
  * 2. Extensions → Apps Script
  * 3. Delete any existing code, paste this entire file
- * 4. Click Deploy → Manage deployments → Edit → Version: New version → Deploy
- *    (Or Deploy → New deployment if first time)
- *    - Type: Web app
- *    - Execute as: Me
- *    - Who has access: Anyone
- * 5. Copy the Web App URL
- * 6. Paste it into checkpoint/index.html as the SCRIPT_URL value
+ * 4. Deploy → Manage deployments → Edit → Version: New version → Deploy
+ * 5. The URL stays the same when you edit an existing deployment
  */
 
 function doPost(e) {
@@ -27,26 +22,52 @@ function doPost(e) {
     var dateToFind = data.date; // e.g. "14/3"
     var lastRow = sheet.getLastRow();
     var dateCol = sheet.getRange(1, 1, lastRow, 1).getValues();
+    var displayFormats = sheet.getRange(1, 1, lastRow, 1).getDisplayValues();
 
     var targetRow = -1;
     for (var i = 0; i < dateCol.length; i++) {
       var cellValue = dateCol[i][0];
-      var cellStr = '';
 
-      if (cellValue instanceof Date) {
-        cellStr = cellValue.getDate() + '/' + (cellValue.getMonth() + 1);
-      } else {
-        cellStr = String(cellValue).trim();
+      // Try display value first (what you see in the sheet)
+      var displayStr = String(displayFormats[i][0]).trim();
+      if (displayStr === dateToFind) {
+        targetRow = i + 1;
+        break;
       }
 
-      if (cellStr === dateToFind) {
+      // Try Date object conversion
+      if (cellValue instanceof Date && !isNaN(cellValue.getTime())) {
+        var dateStr = cellValue.getDate() + '/' + (cellValue.getMonth() + 1);
+        if (dateStr === dateToFind) {
+          targetRow = i + 1;
+          break;
+        }
+      }
+
+      // Try raw string match
+      var rawStr = String(cellValue).trim();
+      if (rawStr === dateToFind) {
         targetRow = i + 1;
         break;
       }
     }
 
     if (targetRow === -1) {
-      return respond({ status: 'error', message: 'Date "' + dateToFind + '" not found in column A' });
+      // Log some sample values for debugging
+      var samples = [];
+      for (var j = 0; j < Math.min(dateCol.length, 100); j++) {
+        var v = dateCol[j][0];
+        var d = displayFormats[j][0];
+        if (v !== '' && d !== '') {
+          samples.push('Row ' + (j+1) + ': display="' + d + '" raw="' + v + '" type=' + typeof v);
+        }
+        if (samples.length >= 10) break;
+      }
+      return respond({
+        status: 'error',
+        message: 'Date "' + dateToFind + '" not found in column A',
+        debug_samples: samples
+      });
     }
 
     // Column mapping (1-indexed):
@@ -68,6 +89,36 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  // If called with ?test=DATE, try to find the date and return debug info
+  if (e && e.parameter && e.parameter.test) {
+    var dateToFind = e.parameter.test;
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Check-In Sheet');
+    if (!sheet) return respond({ error: 'Sheet not found' });
+
+    var lastRow = sheet.getLastRow();
+    var dateCol = sheet.getRange(1, 1, lastRow, 1).getValues();
+    var displayFormats = sheet.getRange(1, 1, lastRow, 1).getDisplayValues();
+
+    var samples = [];
+    var found = -1;
+    for (var i = 0; i < dateCol.length; i++) {
+      var v = dateCol[i][0];
+      var d = String(displayFormats[i][0]).trim();
+      if (d === dateToFind) { found = i + 1; }
+      if (v !== '' && d !== '' && samples.length < 15) {
+        samples.push({
+          row: i + 1,
+          display: d,
+          raw: String(v),
+          type: typeof v,
+          isDate: v instanceof Date
+        });
+      }
+    }
+    return respond({ looking_for: dateToFind, found_row: found, samples: samples });
+  }
+
   return ContentService
     .createTextOutput('Checkpoint backend is running.')
     .setMimeType(ContentService.MimeType.TEXT);
