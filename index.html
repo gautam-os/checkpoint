@@ -314,11 +314,6 @@
     <p class="text-slate-300 font-medium">Saving to sheet...</p>
   </div>
 
-  <!-- Hidden iframe + form for reliable cross-origin POST -->
-  <iframe id="submit-iframe" name="submit-iframe" style="display:none"></iframe>
-  <form id="submit-form" method="POST" target="submit-iframe" style="display:none">
-    <input type="hidden" name="payload" id="form-payload">
-  </form>
 
   <!-- Footer -->
   <footer class="text-center text-xs text-slate-600 py-4">
@@ -568,19 +563,45 @@
         comments: formData.comments
       };
 
-      // Use hidden form + iframe for reliable cross-origin POST
-      // (fetch with no-cors can lose POST body on Google's 302 redirects)
-      const form = document.getElementById('submit-form');
-      const payloadInput = document.getElementById('form-payload');
-      form.action = SCRIPT_URL;
-      payloadInput.value = JSON.stringify(payload);
-      form.submit();
+      // Use JSONP-style GET via dynamic script tag — avoids CORS and POST redirect issues
+      const encodedPayload = encodeURIComponent(JSON.stringify(payload));
+      const callbackName = 'cb_' + Date.now();
+      const url = `${SCRIPT_URL}?data=${encodedPayload}&callback=${callbackName}`;
 
-      // Show success after a delay (we can't read the iframe response cross-origin)
-      setTimeout(() => {
+      let resolved = false;
+
+      window[callbackName] = function(result) {
+        resolved = true;
+        delete window[callbackName];
         hideLoading();
-        goToStep(10);
-      }, 3000);
+        if (result && result.status === 'ok') {
+          goToStep(10);
+        } else {
+          showError(result ? result.message : 'Unknown error');
+        }
+      };
+
+      const script = document.createElement('script');
+      script.src = url;
+      script.onerror = () => {
+        if (!resolved) {
+          resolved = true;
+          delete window[callbackName];
+          hideLoading();
+          showError('Failed to save. Check your connection.');
+        }
+      };
+      document.body.appendChild(script);
+
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          delete window[callbackName];
+          try { document.body.removeChild(script); } catch(e) {}
+          hideLoading();
+          goToStep(10);
+        }
+      }, 15000);
     }
 
     function showError(msg) {

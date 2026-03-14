@@ -104,6 +104,33 @@ function findDateRow(sheet, dateToFind) {
 }
 
 function doGet(e) {
+  // Handle data writes via GET (JSONP-style, avoids CORS/POST redirect issues)
+  if (e && e.parameter && e.parameter.data) {
+    var callback = e.parameter.callback || '';
+    try {
+      var data = JSON.parse(e.parameter.data);
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Check-In Sheet');
+      if (!sheet) return jsonp(callback, { status: 'error', message: 'Sheet not found' });
+
+      var targetRow = findDateRow(sheet, data.date);
+      if (targetRow === -1) return jsonp(callback, { status: 'error', message: 'Date "' + data.date + '" not found' });
+
+      if (data.bodyweight !== '') sheet.getRange(targetRow, 2).setValue(data.bodyweight);
+      if (data.steps !== '')     sheet.getRange(targetRow, 3).setValue(data.steps);
+      if (data.diet)             sheet.getRange(targetRow, 4).setValue(data.diet);
+      if (data.stepsAdhere)      sheet.getRange(targetRow, 5).setValue(data.stepsAdhere);
+      if (data.training)         sheet.getRange(targetRow, 6).setValue(data.training);
+      if (data.cardio)           sheet.getRange(targetRow, 7).setValue(data.cardio);
+      if (data.water)            sheet.getRange(targetRow, 8).setValue(data.water);
+      if (data.comments)         sheet.getRange(targetRow, 9).setValue(data.comments);
+
+      return jsonp(callback, { status: 'ok', row: targetRow, date: data.date });
+    } catch (err) {
+      return jsonp(callback, { status: 'error', message: err.toString() });
+    }
+  }
+
   if (e && e.parameter && e.parameter.test) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Check-In Sheet');
@@ -174,4 +201,14 @@ function respond(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonp(callback, obj) {
+  var json = JSON.stringify(obj);
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + json + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return respond(obj);
 }
