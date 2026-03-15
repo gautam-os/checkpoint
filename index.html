@@ -109,15 +109,14 @@
     .date-chip:hover { background: #334155; }
     .date-chip.active { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
 
-    .week-strip { display: flex; justify-content: center; gap: 6px; padding: 0 16px; }
+    .week-strip { display: flex; justify-content: center; gap: 4px; flex: 1; min-width: 0; }
     .week-day {
       flex: 1;
-      max-width: 48px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
-      padding: 8px 0 6px;
+      gap: 5px;
+      padding: 10px 0 8px;
       border-radius: 12px;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -126,8 +125,8 @@
     .week-day:hover { background: #1e293b; }
     .week-day.is-today { border-color: #334155; }
     .week-day.is-selected { border-color: #0ea5e9; background: rgba(14, 165, 233, 0.1); }
-    .week-day .day-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; }
-    .week-day .day-num { font-size: 16px; font-weight: 700; color: #e2e8f0; }
+    .week-day .day-label { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+    .week-day .day-num { font-size: 18px; font-weight: 700; color: #e2e8f0; }
     .week-day .day-dot {
       width: 8px; height: 8px; border-radius: 50%;
       background: #334155;
@@ -145,11 +144,11 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 0 12px;
+      gap: 2px;
+      padding: 0 6px;
     }
     .week-arrow {
-      width: 32px; height: 32px;
+      width: 28px; height: 28px;
       display: flex; align-items: center; justify-content: center;
       border-radius: 8px;
       border: none;
